@@ -1,0 +1,19 @@
+<main>
+  {% for post in page_obj %}
+    <ul>
+      <li>
+        Автор: {{ post.author.get_full_name }}
+        <a href= "{% url 'posts:profile' post.author.username %}">
+          все посты пользователя
+        </a>
+      </li>
+      <li>
+        Дата публикации: {{ post.pub_date|date:"d E Y" }}
+      </li>
+    </ul>
+    <p>{{ post.text }}</p> 
+    {% block show_all_group_posts %}
+    {% endblock %}
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %} 
+</main>
