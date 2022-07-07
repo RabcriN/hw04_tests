@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
-from ..models import Post, Group
+from django.test import Client, TestCase
+
+from ..models import Group, Post
 
 User = get_user_model()
 
@@ -18,6 +19,15 @@ class PostURLTests(TestCase):
                 description='test description',
             )
         )
+        cls.guest_templates_url_names = {
+            'posts/index.html': '/',
+            'posts/group_list.html': '/group/test_slug/',
+            'posts/profile.html': '/profile/Not_Author/',
+            'posts/post_detail.html': '/posts/1/',
+        }
+        cls.auth_templates_url_names = cls.guest_templates_url_names.copy()
+        only_auth_links = {'posts/post_create.html': '/create/'}
+        cls.auth_templates_url_names.update(only_auth_links)
 
     def setUp(self):
         self.guest_client = Client()
@@ -31,13 +41,7 @@ class PostURLTests(TestCase):
     def test_urls_uses_correct_template_for_anonymous(self):
         """URL-адрес использует соответствующий шаблон.
         Пользователь не авторизирован"""
-        templates_url_names = {
-            'posts/index.html': '/',
-            'posts/group_list.html': '/group/test_slug/',
-            'posts/profile.html': '/profile/Not_Author/',
-            'posts/post_detail.html': '/posts/1/',
-        }
-        for template, address in templates_url_names.items():
+        for template, address in self.guest_templates_url_names.items():
             with self.subTest(address=address):
                 response = self.guest_client.get(address)
                 self.assertTemplateUsed(response, template)
@@ -45,14 +49,7 @@ class PostURLTests(TestCase):
     def test_urls_uses_correct_template_for_authorized(self):
         """URL-адрес использует соответствующий шаблон.
         Пользователь авторизирован"""
-        templates_url_names = {
-            'posts/index.html': '/',
-            'posts/group_list.html': '/group/test_slug/',
-            'posts/profile.html': '/profile/Not_Author/',
-            'posts/post_detail.html': '/posts/1/',
-            'posts/post_create.html': '/create/',
-        }
-        for template, address in templates_url_names.items():
+        for template, address in self.auth_templates_url_names.items():
             with self.subTest(address=address):
                 response = self.authorized_client.get(address)
                 self.assertTemplateUsed(response, template)
@@ -62,14 +59,9 @@ class PostURLTests(TestCase):
         response = self.guest_client.get('/create/', follow=True)
         self.assertRedirects(response, '/auth/login/?next=/create/')
 
-    def test_page_doesnt_exist_anonymous(self):
-        """Несуществующая страница выдаёт 404. Пользователь не авторизирован"""
+    def test_page_doesnt_exist(self):
+        """Несуществующая страница выдаёт 404"""
         response = self.guest_client.get('/unexisting_page/')
-        self.assertEqual(response.status_code, 404)
-
-    def test_page_doesnt_exist_authorized(self):
-        """Несуществующая страница выдаёт 404. Пользователь авторизирован"""
-        response = self.authorized_client.get('/unexisting_page/')
         self.assertEqual(response.status_code, 404)
 
     def test_edit_page_if_not_author(self):
@@ -81,3 +73,17 @@ class PostURLTests(TestCase):
         """Страница /edit/ открывает шаблон create автору поста"""
         response = self.client_is_author.get('/posts/1/edit/')
         self.assertTemplateUsed(response, 'posts/post_create.html')
+
+    def test_guest_goes_to_links(self):
+        """Неавторизированный пользователь ходит по ссылкам"""
+        for address in self.guest_templates_url_names.values():
+            with self.subTest(address=address):
+                response = self.guest_client.get(address)
+                self.assertEqual(response.status_code, 200)
+
+    def test_auth_goes_to_links(self):
+        """Авторизированный пользователь ходит по ссылкам"""
+        for address in self.auth_templates_url_names.values():
+            with self.subTest(address=address):
+                response = self.authorized_client.get(address)
+                self.assertEqual(response.status_code, 200)

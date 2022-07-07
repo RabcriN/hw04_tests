@@ -1,7 +1,8 @@
-from django.test import Client, TestCase
-from ..models import Group, Post
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from ..models import Group, Post
 
 User = get_user_model()
 
@@ -32,7 +33,7 @@ class PostCreateFormTests(TestCase):
         posts_count = Post.objects.count()
         form_data = {
             'text': 'Тестовый пост длиной более 15 символов',
-            'group': PostCreateFormTests.group.id,
+            'group': self.group.id,
         }
         response = self.authorized_client.post(
             reverse('posts:post_create'),
@@ -43,13 +44,14 @@ class PostCreateFormTests(TestCase):
             'posts:profile', kwargs={'username': 'Author'})
         )
         self.assertEqual(Post.objects.count(), posts_count + 1)
-        self.assertTrue(
-            Post.objects.filter(
-                author=self.user,
-                text='Тестовый пост длиной более 15 символов',
-                group=self.group
-            ).exists()
-        )
+        post = Post.objects.first()
+        context = {
+            post.text: 'Тестовый пост длиной более 15 символов',
+            post.author.username: 'Author',
+            post.group.slug: 'test_slug',
+        }
+        for field, expected in context.items():
+            self.assertEqual(field, expected)
 
     def test_edit_post_form(self):
         """Валидная форма редактирует запись и редиректит"""
@@ -65,10 +67,11 @@ class PostCreateFormTests(TestCase):
         self.assertRedirects(response, reverse(
             'posts:post_detail', kwargs={'post_id': '1'})
         )
-        self.assertTrue(
-            Post.objects.filter(
-                author=self.user,
-                text='Тестовый пост отредактирован',
-                group=self.group
-            ).exists()
-        )
+        post = Post.objects.first()
+        context = {
+            post.text: 'Тестовый пост отредактирован',
+            post.author.username: 'Author',
+            post.group.slug: 'test_slug',
+        }
+        for field, expected in context.items():
+            self.assertEqual(field, expected)

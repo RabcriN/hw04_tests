@@ -1,9 +1,9 @@
+from django import forms
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from ..models import Group, Post
-from django import forms
 
 User = get_user_model()
 
@@ -17,53 +17,53 @@ class PostPagesTests(TestCase):
             title='Тестовая группа',
             slug='test_slug',
             description='Тестовое описание',
+            id=1,
         )
         cls.group = Group.objects.create(
             title='Тестовая группа номер два',
             slug='test_slug_2',
             description='Группа для проверки поста другой группы',
         )
-        for i in range(13):
-            cls.post = Post.objects.create(
+        Post.objects.bulk_create(
+            [Post(
                 author=cls.user,
                 text='Тестовый пост длиной более 15 символов',
                 group=Group.objects.get(slug='test_slug'),
-            )
+            ) for _ in range(13)]
+        )
 
     def setUp(self):
         self.user = User.objects.get(username='Author')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
-    def test_pages_uses_correct_template(self):
-        """URL-адрес использует соответствующий шаблон."""
-        templates_pages_names = {
-            reverse('posts:index'): 'posts/index.html',
-            reverse('posts:group_list', kwargs={'slug': 'test_slug'}): (
-                'posts/group_list.html'),
-            reverse('posts:profile', kwargs={'username': 'Author'}): (
-                'posts/profile.html'
-            ),
-            reverse('posts:post_detail', kwargs={'post_id': '1'}): (
-                'posts/post_detail.html'
-            ),
-            reverse('posts:post_create'): 'posts/post_create.html',
-            reverse('posts:post_edit', kwargs={'post_id': '1'}): (
-                'posts/post_create.html'
-            ),
-        }
-        for reverse_name, template in templates_pages_names.items():
-            with self.subTest(reverse_name=reverse_name):
-                response = self.authorized_client.get(reverse_name)
-                self.assertTemplateUsed(response, template)
+    def check_context(self, page_object):
+        post = Post.objects.first()
+        post_data = [
+            post.text,
+            post.id,
+            post.group.slug,
+            post.author.username,
+        ]
+        context_data = [
+            page_object.text,
+            page_object.id,
+            page_object.group.slug,
+            page_object.author.username,
+        ]
+        if post_data != context_data:
+            return False
+        return True
 
     def test_index_show_correct_context(self):
         """Шаблон index сформирован с правильным контекстом + паджинатор
         на 10 постов"""
         response = self.authorized_client.get(reverse('posts:index'))
         first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        self.assertEqual(post_text_0, 'Тестовый пост длиной более 15 символов')
+        self.assertTrue(
+            self.check_context(first_object),
+            'Словари контекста не совпадают'
+        )
         self.assertEqual(len(response.context['page_obj']), 10)
 
     def test_group_list_show_correct_context(self):
@@ -73,13 +73,10 @@ class PostPagesTests(TestCase):
             reverse('posts:group_list', kwargs={'slug': 'test_slug'}))
         )
         first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        self.assertEqual(post_text_0, 'Тестовый пост длиной более 15 символов')
-        self.assertEqual(
-            response.context.get('group').title,
-            'Тестовая группа'
+        self.assertTrue(
+            self.check_context(first_object),
+            'Словари контекста не совпадают'
         )
-        self.assertEqual(response.context.get('group').slug, 'test_slug')
         self.assertEqual(len(response.context['page_obj']), 10)
 
     def test_profile_show_correct_context(self):
@@ -89,22 +86,25 @@ class PostPagesTests(TestCase):
             reverse('posts:profile', kwargs={'username': 'Author'}))
         )
         first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        post_author_0 = first_object.author.username
-        self.assertEqual(post_text_0, 'Тестовый пост длиной более 15 символов')
-        self.assertEqual(post_author_0, 'Author')
+        self.assertTrue(
+            self.check_context(first_object),
+            'Словари контекста не совпадают'
+        )
         self.assertEqual(len(response.context['page_obj']), 10)
 
     def test_post_detail_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
         response = (self.authorized_client.get(
-            reverse('posts:post_detail', kwargs={'post_id': '1'}))
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': Post.objects.first().id},
+            ))
         )
         page_object = response.context['post']
-        post_text_0 = page_object.text
-        post_id_0 = page_object.id
-        self.assertEqual(post_text_0, 'Тестовый пост длиной более 15 символов')
-        self.assertEqual(post_id_0, 1)
+        self.assertTrue(
+            self.check_context(page_object),
+            'Словари контекста не совпадают'
+        )
 
     def test_post_create_show_correct_context(self):
         """Шаблон post_create сформирован с правильным контекстом."""
@@ -141,5 +141,3 @@ class PostPagesTests(TestCase):
             reverse('posts:group_list', kwargs={'slug': 'test_slug_2'}))
         )
         self.assertEqual(len(response.context['page_obj']), 0)
-        for post in Post.objects.all():
-            self.assertEqual(post.group.slug, 'test_slug')
