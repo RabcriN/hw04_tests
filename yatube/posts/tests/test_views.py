@@ -138,6 +138,9 @@ class PostPagesTests(TestCase):
     def test_created_post_not_in_another_group(self):
         """Проверяем, что пост не попал в другую группу"""
         response = (self.authorized_client.get(
-            reverse('posts:group_list', kwargs={'slug': 'test_slug_2'}))
+            reverse(
+                'posts:group_list',
+                kwargs={'slug': Group.objects.last().slug}
+            ))
         )
         self.assertEqual(len(response.context['page_obj']), 0)

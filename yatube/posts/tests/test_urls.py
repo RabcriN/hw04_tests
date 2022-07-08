@@ -10,7 +10,7 @@ class PostURLTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        Post.objects.create(
+        cls.post = Post.objects.create(
             text='Тестовый текст длиной более 15 символов',
             author=User.objects.create_user(username='Author'),
             group=Group.objects.create(
@@ -19,19 +19,19 @@ class PostURLTests(TestCase):
                 description='test description',
             )
         )
+        cls.user = User.objects.create_user(username='Not_Author')
         cls.guest_templates_url_names = {
             'posts/index.html': '/',
-            'posts/group_list.html': '/group/test_slug/',
-            'posts/profile.html': '/profile/Not_Author/',
-            'posts/post_detail.html': '/posts/1/',
+            'posts/group_list.html': f'/group/{cls.post.group.slug}/',
+            'posts/profile.html': f'/profile/{cls.user.username}/',
+            'posts/post_detail.html': f'/posts/{cls.post.id}/',
         }
-        cls.auth_templates_url_names = cls.guest_templates_url_names.copy()
-        only_auth_links = {'posts/post_create.html': '/create/'}
-        cls.auth_templates_url_names.update(only_auth_links)
+        cls.auth_templates_url_names = {
+            'posts/post_create.html': '/create/',
+        }
 
     def setUp(self):
         self.guest_client = Client()
-        self.user = User.objects.create_user(username='Not_Author')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         self.user2 = User.objects.get(username='Author')
@@ -66,12 +66,15 @@ class PostURLTests(TestCase):
 
     def test_edit_page_if_not_author(self):
         """Страница /edit/ редиректит, если юзер не автор поста"""
-        response = self.authorized_client.get('/posts/1/edit/', follow=True)
-        self.assertRedirects(response, '/posts/1/')
+        response = self.authorized_client.get(
+            f'/posts/{self.post.id}/edit/',
+            follow=True
+        )
+        self.assertRedirects(response, f'/posts/{self.post.id}/')
 
     def test_edit_page_if_is_author(self):
         """Страница /edit/ открывает шаблон create автору поста"""
-        response = self.client_is_author.get('/posts/1/edit/')
+        response = self.client_is_author.get(f'/posts/{self.post.id}/edit/')
         self.assertTemplateUsed(response, 'posts/post_create.html')
 
     def test_guest_goes_to_links(self):
