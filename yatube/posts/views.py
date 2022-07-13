@@ -38,7 +38,7 @@ def group_posts(request, slug):
 
 def profile(request, username):
     """Профайл пользователя + паджинатор на 10 постов"""
-    author = get_object_or_404(User, username=username)
+    author = get_object_or_404(User, username=username) 
     post_list = author.posts.all()
     page_obj = get_paginator(request, post_list)
     context = {
@@ -75,7 +75,10 @@ def post_edit(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     if post.author != request.user:
         return redirect('posts:post_detail', post_id=post_id)
-    form = PostForm(request.POST or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post)
     if form.is_valid():
         form.save()
         return redirect('posts:post_detail', post_id=post_id)
