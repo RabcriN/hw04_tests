@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import PostForm
-from .models import Group, Post, User
+from .forms import PostForm, CommentForm
+from .models import Group, Post, User, Comment
 
 
 def get_paginator(request, post_list):
@@ -38,7 +38,7 @@ def group_posts(request, slug):
 
 def profile(request, username):
     """Профайл пользователя + паджинатор на 10 постов"""
-    author = get_object_or_404(User, username=username) 
+    author = get_object_or_404(User, username=username)
     post_list = author.posts.all()
     page_obj = get_paginator(request, post_list)
     context = {
@@ -51,8 +51,12 @@ def profile(request, username):
 def post_detail(request, post_id):
     """Просмотр записи"""
     post = get_object_or_404(Post, id=post_id)
+    comments = post.comments.all()
+    form = CommentForm(request.POST or None)
     context = {
         'post': post,
+        'comments': comments,
+        'form': form,
     }
     return render(request, 'posts/post_detail.html', context)
 
@@ -84,3 +88,15 @@ def post_edit(request, post_id):
         return redirect('posts:post_detail', post_id=post_id)
     context = {'form': form, 'is_edit': True, 'post': post}
     return render(request, 'posts/post_create.html', context)
+
+
+@login_required
+def add_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    form = CommentForm(request.POST or None)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.save()
+    return redirect('posts:post_detail', post_id=post_id)

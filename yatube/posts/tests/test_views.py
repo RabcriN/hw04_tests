@@ -1,13 +1,20 @@
+import shutil
+import tempfile
+
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django import forms
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from ..models import Group, Post
 
 User = get_user_model()
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -24,13 +31,32 @@ class PostPagesTests(TestCase):
             slug='test_slug_2',
             description='Группа для проверки поста другой группы',
         )
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         Post.objects.bulk_create(
             [Post(
                 author=cls.user,
                 text='Тестовый пост длиной более 15 символов',
                 group=Group.objects.get(slug='test_slug'),
+                image=uploaded,
             ) for _ in range(13)]
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.user = User.objects.get(username='Author')
@@ -44,12 +70,14 @@ class PostPagesTests(TestCase):
             post.id,
             post.group.slug,
             post.author.username,
+            post.image,
         ]
         context_data = [
             page_object.text,
             page_object.id,
             page_object.group.slug,
             page_object.author.username,
+            page_object.image,
         ]
         if post_data != context_data:
             return False
