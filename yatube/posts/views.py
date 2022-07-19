@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import PostForm, CommentForm
-from .models import Group, Post, User, Comment
+from .models import Group, Post, User
 
 
 def get_paginator(request, post_list):
@@ -64,7 +64,7 @@ def post_detail(request, post_id):
 @login_required
 def post_create(request):
     """Создание нового поста"""
-    form = PostForm(request.POST or None)
+    form = PostForm(request.POST or None, files=request.FILES or None)
     if request.method != 'POST' or form.is_valid() is False:
         return render(request, 'posts/post_create.html', {'form': form})
     new_post = form.save(commit=False)

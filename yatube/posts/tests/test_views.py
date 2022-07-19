@@ -7,6 +7,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.core.cache import cache
 
 from ..models import Group, Post
 
@@ -172,3 +173,44 @@ class PostPagesTests(TestCase):
             ))
         )
         self.assertEqual(len(response.context['page_obj']), 0)
+
+    def test_picture_uploaded(self):
+        """Пост с картинкой создаётся"""
+        post = Post.objects.last()
+        self.assertEqual(post.image.name, 'posts/small.gif')
+
+    def test_add_comment(self):
+        """Авторизированный пользователь создаёт комментарий"""
+        post = Post.objects.last()
+        form_data = {
+            'text': 'test comment',
+        }
+        response = self.authorized_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': post.id}),
+            data=form_data,
+            follow=False,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        response1 = self.authorized_client.get(
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': post.id}
+            )
+        )
+        self.assertEqual(len(response1.context['comments']), 1)
+
+    def test_cache_index(self):
+        """Проверяем работу кеша главной страницы"""
+        response = self.authorized_client.get(reverse('posts:index'))
+        posts = response.content
+        Post.objects.create(text='test cashe', author=self.user)
+        response_old = self.authorized_client.get(reverse('posts:index'))
+        old_posts = response_old.content
+        self.assertEqual(old_posts, posts)
+        cache.clear()
+        response_new = self.authorized_client.get(reverse('posts:index'))
+        posts_new = response_new.content
+        self.assertNotEqual(old_posts, posts_new)

@@ -90,3 +90,19 @@ class PostURLTests(TestCase):
             with self.subTest(address=address):
                 response = self.authorized_client.get(address)
                 self.assertEqual(response.status_code, 200)
+
+    def test_add_comment_access(self):
+        """Проверка редиректа на логин при создании комментария гостем"""
+        response = self.guest_client.get(
+            f'/posts/{self.post.id}/comment/',
+            follow=True
+        )
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next=/posts/{self.post.id}/comment/'
+        )
+
+    def test_404_custom_template(self):
+        """404 возвращает кастомный шаблон"""
+        response = self.guest_client.get('/unexisting_page/')
+        self.assertTemplateUsed(response, 'core/404.html')

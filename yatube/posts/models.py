@@ -12,6 +12,10 @@ class Group(models.Model):
     def __str__(self) -> str:
         return self.title
 
+    class Meta:
+        verbose_name = 'Группа'
+        verbose_name_plural = 'Группы'
+
 
 class Post(models.Model):
     text = models.TextField(
@@ -20,7 +24,8 @@ class Post(models.Model):
     )
     pub_date = models.DateTimeField(
         'Дата публикации',
-        auto_now_add=True
+        auto_now_add=True,
+        db_index=True,
     )
     author = models.ForeignKey(
         User,
@@ -71,3 +76,7 @@ class Comment(models.Model):
         'Дата публикации',
         auto_now_add=True
     )
+
+    class Meta:
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'

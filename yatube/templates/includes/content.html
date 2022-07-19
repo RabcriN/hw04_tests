@@ -1,5 +1,7 @@
+{% load cache %}
+{% load thumbnail %}
 <main>
-  {% load thumbnail %}
+  {% cache 20 index_page, page_obj %}
   {% for post in page_obj %}
     <ul>
       <li>
@@ -20,4 +22,5 @@
     {% endblock %}
     {% if not forloop.last %}<hr>{% endif %}
   {% endfor %} 
+  {% endcache %}
 </main>
