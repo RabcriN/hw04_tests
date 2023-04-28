@@ -1,3 +1,4 @@
-# hw04_tests
-
-[![CI](https://github.com/yandex-praktikum/hw04_tests/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/yandex-praktikum/hw04_tests/actions/workflows/python-app.yml)
+Тесты для проекта Yatube (социальная сеть).
+Тесты находятся в следующих директориях:
+/yatube/about/tests.py
+/yatube/posts/tests/...
